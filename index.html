@@ -11,7 +11,6 @@
   <title>💸 Gasto</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: -apple-system, sans-serif;
       background: #000;
@@ -23,9 +22,7 @@
       gap: 12px;
       overflow: hidden;
     }
-
     h1 { font-size: 20px; font-weight: 700; padding-top: 8px; }
-
     textarea {
       flex: 1;
       background: #1c1c1e;
@@ -40,36 +37,8 @@
       min-height: 0;
     }
     textarea::placeholder { color: #555; }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-    }
-
-    #btn-mic {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      border: none;
-      background: #1c1c1e;
-      font-size: 28px;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: background 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #btn-mic.recording { background: #ff453a; animation: pulse 1s infinite; }
-    #btn-mic:active { opacity: 0.7; }
-
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.08); }
-    }
-
     #btn-save {
-      flex: 1;
+      width: 100%;
       height: 64px;
       background: #30d158;
       color: #000;
@@ -78,33 +47,17 @@
       font-size: 18px;
       font-weight: 700;
       cursor: pointer;
-      transition: opacity 0.15s;
     }
     #btn-save:active { opacity: 0.7; }
-
-    #status {
-      text-align: center;
-      font-size: 14px;
-      min-height: 18px;
-      color: #888;
-    }
+    #mic-hint { text-align: center; font-size: 13px; color: #555; }
+    #status { text-align: center; font-size: 14px; min-height: 18px; color: #888; }
     #status.ok { color: #30d158; }
     #status.err { color: #ff453a; }
 
-    /* Cola de pendientes */
     #queue-section { display: none; }
     #queue-section.visible { display: block; }
-
-    #queue-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    #queue-title { font-size: 14px; font-weight: 600; color: #ff9f0a; }
-
+    #queue-title { font-size: 14px; font-weight: 600; color: #ff9f0a; margin-bottom: 8px; }
     #queue-list { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; }
-
     .queue-item {
       background: #1c1c1e;
       border-radius: 10px;
@@ -115,43 +68,18 @@
     }
     .queue-item-text { flex: 1; font-size: 13px; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .queue-item-attempts { font-size: 11px; color: #555; flex-shrink: 0; }
-    .queue-item-retry {
-      background: #2c2c2e;
-      border: none;
-      color: #0a84ff;
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-    .queue-item-delete {
-      background: none;
-      border: none;
-      color: #ff453a;
-      font-size: 16px;
-      cursor: pointer;
-      flex-shrink: 0;
-      padding: 0 4px;
-    }
+    .queue-item-retry { background: #2c2c2e; border: none; color: #0a84ff; font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+    .queue-item-delete { background: none; border: none; color: #ff453a; font-size: 16px; cursor: pointer; padding: 0 4px; }
   </style>
 </head>
 <body>
   <h1>💸 ¿Qué gastaste?</h1>
-
-  <textarea id="txt" placeholder="Escribe o usa el micrófono…"></textarea>
-
+  <textarea id="txt" placeholder="Escribe aquí o toca 🎤 en tu teclado para dictar…"></textarea>
   <div id="status"></div>
-
-  <div class="actions">
-    <button id="btn-mic" onclick="toggleMic()" title="Grabar voz">🎤</button>
-    <button id="btn-save" onclick="guardar()">Guardar</button>
-  </div>
-
+  <button id="btn-save" onclick="guardar()">Guardar</button>
+  <div id="mic-hint">🎤 Toca el micrófono de tu teclado para dictar</div>
   <div id="queue-section">
-    <div id="queue-header">
-      <span id="queue-title">⚠️ Pendientes</span>
-    </div>
+    <div id="queue-title">⚠️ Pendientes</div>
     <div id="queue-list"></div>
   </div>
 
@@ -161,7 +89,6 @@
     const QUEUE_KEY = 'draft_queue_v1';
     const BACKOFF = [3000, 6000, 12000, 24000, 48000];
 
-    // ── Cola ──────────────────────────────────────────────
     function loadQueue() {
       try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
     }
@@ -242,7 +169,6 @@
       }, delay);
     }
 
-    // ── Guardar optimista ─────────────────────────────────
     function setStatus(msg, cls) {
       const s = document.getElementById('status');
       s.textContent = msg;
@@ -254,7 +180,7 @@
       const txt = document.getElementById('txt').value.trim();
       if (!txt) return;
       document.getElementById('txt').value = '';
-      setStatus('✓ Guardado', 'ok');          // optimista — respuesta inmediata
+      setStatus('✓ Guardado', 'ok');
       try {
         await sendToAPI(txt);
       } catch {
@@ -263,51 +189,10 @@
       }
     }
 
-    // ── Micrófono ─────────────────────────────────────────
-    let recognition = null;
-    let isRecording = false;
+    document.getElementById('txt').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) guardar();
+    });
 
-    function toggleMic() {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        setStatus('Tu navegador no soporta voz', 'err');
-        return;
-      }
-      if (isRecording) {
-        recognition.stop();
-        return;
-      }
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognition = new SR();
-      recognition.lang = 'es-CO';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
-      recognition.onstart = () => {
-        isRecording = true;
-        document.getElementById('btn-mic').classList.add('recording');
-        setStatus('Escuchando…');
-      };
-      recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        document.getElementById('txt').value = transcript;
-      };
-      recognition.onend = () => {
-        isRecording = false;
-        document.getElementById('btn-mic').classList.remove('recording');
-        setStatus('');
-        // si hay texto, guardar automáticamente
-        const txt = document.getElementById('txt').value.trim();
-        if (txt) guardar();
-      };
-      recognition.onerror = (e) => {
-        isRecording = false;
-        document.getElementById('btn-mic').classList.remove('recording');
-        setStatus('Error de micrófono: ' + e.error, 'err');
-      };
-      recognition.start();
-    }
-
-    // ── Init ──────────────────────────────────────────────
     renderQueue();
     scheduleRetry();
 
@@ -317,18 +202,12 @@
           const sw = reg.installing;
           sw.addEventListener('statechange', () => {
             if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-              // Nueva versión lista — recargar automático
               window.location.reload();
             }
           });
         });
       });
     }
-
-    // Cmd+Enter / Enter en desktop guarda
-    document.getElementById('txt').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) guardar();
-    });
   </script>
 </body>
 </html>
