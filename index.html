@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="💸 Gasto">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>💸 Gasto</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, sans-serif;
+      background: #000;
+      color: #fff;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
+      gap: 16px;
+    }
+    h1 { font-size: 22px; font-weight: 700; }
+    textarea {
+      flex: 1;
+      background: #1c1c1e;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 18px;
+      font-family: -apple-system, sans-serif;
+      resize: none;
+      outline: none;
+    }
+    textarea::placeholder { color: #555; }
+    button {
+      background: #30d158;
+      color: #000;
+      border: none;
+      border-radius: 14px;
+      padding: 18px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:active { opacity: 0.7; }
+    button:disabled { background: #333; color: #666; }
+    #status {
+      text-align: center;
+      font-size: 15px;
+      min-height: 22px;
+      color: #888;
+    }
+    #status.ok { color: #30d158; }
+    #status.err { color: #ff453a; }
+  </style>
+</head>
+<body>
+  <h1>💸 ¿Qué gastaste?</h1>
+  <textarea id="txt" placeholder="ej: almuerzo 15mil bancolombia" autofocus></textarea>
+  <div id="status"></div>
+  <button id="btn" onclick="guardar()">Guardar</button>
+
+  <script>
+    const API = 'https://o2gdi50tlk.execute-api.us-east-1.amazonaws.com/api/v1/drafts';
+    const KEY = 'OD4WpBVxtYpjjfgAEmETUVYGaxIdYva3uPdwnl0K6tI';
+
+    async function guardar() {
+      const txt = document.getElementById('txt').value.trim();
+      if (!txt) return;
+
+      const btn = document.getElementById('btn');
+      const status = document.getElementById('status');
+
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+      status.className = '';
+      status.textContent = '';
+
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-api-key': KEY },
+          body: JSON.stringify({ text: txt })
+        });
+        if (!res.ok) throw new Error('Error ' + res.status);
+        status.className = 'ok';
+        status.textContent = '✓ Guardado';
+        document.getElementById('txt').value = '';
+      } catch (e) {
+        status.className = 'err';
+        status.textContent = '✗ Sin conexión — intenta de nuevo';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar';
+      }
+    }
+
+    document.getElementById('txt').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.metaKey) guardar();
+    });
+  </script>
+</body>
+</html>
