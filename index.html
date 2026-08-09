@@ -18,18 +18,10 @@
       height: 100dvh;
       display: flex;
       flex-direction: column;
-      padding: env(safe-area-inset-top, 16px) 16px 0;
-    }
-
-    #top {
-      display: flex;
-      flex-direction: column;
+      padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px);
       gap: 10px;
-      padding-bottom: 80px; /* espacio para el botón fijo */
     }
-
-    h1 { font-size: 18px; font-weight: 700; }
-
+    h1 { font-size: 18px; font-weight: 700; flex-shrink: 0; }
     textarea {
       background: #1c1c1e;
       color: #fff;
@@ -40,24 +32,22 @@
       font-family: -apple-system, sans-serif;
       resize: none;
       outline: none;
-      height: 120px;
+      flex-shrink: 0;
+      height: 100px;
       width: 100%;
     }
     textarea::placeholder { color: #555; }
-
     #btn-save {
-      position: fixed;
-      bottom: env(safe-area-inset-bottom, 0px);
-      left: 0;
-      right: 0;
+      width: 100%;
       height: 56px;
       background: #30d158;
       color: #000;
       border: none;
+      border-radius: 12px;
       font-size: 17px;
       font-weight: 700;
       cursor: pointer;
-      z-index: 100;
+      flex-shrink: 0;
     }
     #btn-save:active { opacity: 0.7; }
 
@@ -86,13 +76,11 @@
   </style>
 </head>
 <body>
-  <div id="top">
-    <h1>💸 ¿Qué gastaste?</h1>
-    <textarea id="txt" placeholder="Escribe o toca 🎤 en tu teclado…" rows="3"></textarea>
-    <div id="status"></div>
-    <button id="btn-save" onclick="guardar()">Guardar</button>
-    <div id="mic-hint">🎤 Usa el micrófono de tu teclado para dictar</div>
-  </div>
+  <h1>💸 ¿Qué gastaste?</h1>
+  <textarea id="txt" placeholder="Escribe o toca 🎤 en tu teclado…" rows="3"></textarea>
+  <div id="status"></div>
+  <button id="btn-save" onclick="guardar()">Guardar</button>
+  <div id="mic-hint">🎤 Toca el micrófono de tu teclado para dictar</div>
 
   <div id="queue-section">
     <div id="queue-title">⚠️ Pendientes</div>
