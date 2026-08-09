@@ -18,66 +18,79 @@
       height: 100dvh;
       display: flex;
       flex-direction: column;
-      padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px);
-      gap: 12px;
-      overflow: hidden;
+      padding: env(safe-area-inset-top, 16px) 16px 0;
     }
-    h1 { font-size: 20px; font-weight: 700; padding-top: 8px; }
+
+    #top {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: 10px;
+    }
+
+    h1 { font-size: 18px; font-weight: 700; }
+
     textarea {
-      flex: 1;
       background: #1c1c1e;
       color: #fff;
       border: none;
-      border-radius: 14px;
-      padding: 16px;
-      font-size: 17px;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
       font-family: -apple-system, sans-serif;
       resize: none;
       outline: none;
-      min-height: 0;
+      height: 90px;
+      width: 100%;
     }
     textarea::placeholder { color: #555; }
+
     #btn-save {
       width: 100%;
-      height: 64px;
+      height: 52px;
       background: #30d158;
       color: #000;
       border: none;
-      border-radius: 14px;
-      font-size: 18px;
+      border-radius: 12px;
+      font-size: 17px;
       font-weight: 700;
       cursor: pointer;
     }
     #btn-save:active { opacity: 0.7; }
-    #mic-hint { text-align: center; font-size: 13px; color: #555; }
-    #status { text-align: center; font-size: 14px; min-height: 18px; color: #888; }
+
+    #mic-hint { font-size: 12px; color: #444; text-align: center; }
+
+    #status { text-align: center; font-size: 13px; min-height: 16px; color: #888; }
     #status.ok { color: #30d158; }
     #status.err { color: #ff453a; }
 
-    #queue-section { display: none; }
+    #queue-section { display: none; margin-top: 8px; }
     #queue-section.visible { display: block; }
-    #queue-title { font-size: 14px; font-weight: 600; color: #ff9f0a; margin-bottom: 8px; }
-    #queue-list { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; }
+    #queue-title { font-size: 13px; font-weight: 600; color: #ff9f0a; margin-bottom: 6px; }
+    #queue-list { display: flex; flex-direction: column; gap: 5px; max-height: 120px; overflow-y: auto; }
     .queue-item {
       background: #1c1c1e;
       border-radius: 10px;
-      padding: 10px 12px;
+      padding: 8px 10px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .queue-item-text { flex: 1; font-size: 13px; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .queue-item-attempts { font-size: 11px; color: #555; flex-shrink: 0; }
-    .queue-item-retry { background: #2c2c2e; border: none; color: #0a84ff; font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
-    .queue-item-delete { background: none; border: none; color: #ff453a; font-size: 16px; cursor: pointer; padding: 0 4px; }
+    .queue-item-text { flex: 1; font-size: 12px; color: #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .queue-item-attempts { font-size: 10px; color: #555; flex-shrink: 0; }
+    .queue-item-retry { background: #2c2c2e; border: none; color: #0a84ff; font-size: 11px; padding: 3px 7px; border-radius: 5px; cursor: pointer; }
+    .queue-item-delete { background: none; border: none; color: #ff453a; font-size: 15px; cursor: pointer; padding: 0 2px; }
   </style>
 </head>
 <body>
-  <h1>💸 ¿Qué gastaste?</h1>
-  <textarea id="txt" placeholder="Escribe aquí o toca 🎤 en tu teclado para dictar…"></textarea>
-  <div id="status"></div>
-  <button id="btn-save" onclick="guardar()">Guardar</button>
-  <div id="mic-hint">🎤 Toca el micrófono de tu teclado para dictar</div>
+  <div id="top">
+    <h1>💸 ¿Qué gastaste?</h1>
+    <textarea id="txt" placeholder="Escribe o toca 🎤 en tu teclado…" rows="3"></textarea>
+    <div id="status"></div>
+    <button id="btn-save" onclick="guardar()">Guardar</button>
+    <div id="mic-hint">🎤 Usa el micrófono de tu teclado para dictar</div>
+  </div>
+
   <div id="queue-section">
     <div id="queue-title">⚠️ Pendientes</div>
     <div id="queue-list"></div>
@@ -116,7 +129,7 @@
       list.innerHTML = q.map(item => `
         <div class="queue-item">
           <span class="queue-item-text">${item.text}</span>
-          <span class="queue-item-attempts">${item.attempts} intentos</span>
+          <span class="queue-item-attempts">${item.attempts}x</span>
           <button class="queue-item-retry" onclick="retryItem('${item.id}')">Reintentar</button>
           <button class="queue-item-delete" onclick="removeFromQueue('${item.id}')">✕</button>
         </div>
@@ -181,6 +194,7 @@
       if (!txt) return;
       document.getElementById('txt').value = '';
       setStatus('✓ Guardado', 'ok');
+      document.getElementById('txt').focus();
       try {
         await sendToAPI(txt);
       } catch {
@@ -195,6 +209,11 @@
 
     renderQueue();
     scheduleRetry();
+
+    // Abrir teclado automáticamente al cargar
+    window.addEventListener('load', () => {
+      setTimeout(() => document.getElementById('txt').focus(), 300);
+    });
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(reg => {
