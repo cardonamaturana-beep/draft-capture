@@ -311,6 +311,20 @@
     renderQueue();
     scheduleRetry();
 
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              // Nueva versión lista — recargar automático
+              window.location.reload();
+            }
+          });
+        });
+      });
+    }
+
     // Cmd+Enter / Enter en desktop guarda
     document.getElementById('txt').addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) guardar();
