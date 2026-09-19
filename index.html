@@ -41,9 +41,16 @@
       width: 100%;
     }
     textarea::placeholder { color: #555; }
+
+    /* ── Barra de acciones ── */
+    #action-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
     #btn-save {
-      width: 100%;
-      height: 56px;
+      flex: 1;
+      height: 52px;
       background: #30d158;
       color: #000;
       border: none;
@@ -54,12 +61,69 @@
     }
     #btn-save:active { opacity: 0.7; }
 
-    #mic-hint { font-size: 12px; color: #444; text-align: center; }
+    #btn-attach {
+      width: 52px;
+      height: 52px;
+      background: #1c1c1e;
+      border: none;
+      border-radius: 12px;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+    }
+    #btn-attach:active { opacity: 0.7; }
+    #btn-attach.has-image { background: #0a84ff22; }
+    #attach-badge {
+      display: none;
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 10px; height: 10px;
+      background: #0a84ff;
+      border-radius: 50%;
+    }
+    #btn-attach.has-image #attach-badge { display: block; }
 
+    /* ── Preview imagen ── */
+    #image-preview-wrap {
+      display: none;
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #1c1c1e;
+      max-height: 140px;
+    }
+    #image-preview-wrap.visible { display: block; }
+    #image-preview {
+      width: 100%;
+      max-height: 140px;
+      object-fit: cover;
+      display: block;
+      border-radius: 12px;
+    }
+    #btn-remove-image {
+      position: absolute;
+      top: 6px; right: 6px;
+      background: rgba(0,0,0,0.6);
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    #mic-hint { font-size: 12px; color: #444; text-align: center; }
     #status { text-align: center; font-size: 13px; min-height: 16px; color: #888; }
     #status.ok { color: #30d158; }
     #status.err { color: #ff453a; }
+    #status.warn { color: #ff9f0a; }
 
+    /* ── Cola offline ── */
     #queue-section { display: none; margin-top: 8px; }
     #queue-section.visible { display: block; }
     #queue-title { font-size: 13px; font-weight: 600; color: #ff9f0a; margin-bottom: 6px; }
@@ -81,11 +145,30 @@
 <body>
   <div id="top">
     <h1>💸 ¿Qué gastaste?</h1>
-    <textarea id="txt" autofocus placeholder="Escribe o toca 🎤 en tu teclado…" rows="3"></textarea>
+    <textarea id="txt" autofocus placeholder="Escribe, dicta 🎤 o adjunta una imagen 📎…" rows="3"></textarea>
+
+    <!-- Preview imagen seleccionada -->
+    <div id="image-preview-wrap">
+      <img id="image-preview" src="" alt="preview">
+      <button id="btn-remove-image" onclick="removeImage()">✕</button>
+    </div>
+
     <div id="status"></div>
-    <button id="btn-save" onclick="guardar()">Guardar</button>
+
+    <!-- Barra: botón adjuntar + botón guardar -->
+    <div id="action-row">
+      <button id="btn-attach" onclick="triggerFilePicker()" title="Adjuntar imagen">
+        📎
+        <span id="attach-badge"></span>
+      </button>
+      <button id="btn-save" onclick="guardar()">Guardar</button>
+    </div>
+
     <div id="mic-hint">🎤 Toca el micrófono de tu teclado para dictar</div>
   </div>
+
+  <!-- Input de archivo oculto -->
+  <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onImageSelected(event)">
 
   <div id="queue-section">
     <div id="queue-title">⚠️ Pendientes</div>
@@ -97,15 +180,65 @@
     const KEY = 'OD4WpBVxtYpjjfgAEmETUVYGaxIdYva3uPdwnl0K6tI';
     const QUEUE_KEY = 'draft_queue_v1';
     const BACKOFF = [3000, 6000, 12000, 24000, 48000];
+    const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB
+
+    let _imageBase64 = null;   // base64 de la imagen seleccionada (null si no hay)
+    let _imageMime   = null;   // mime type de la imagen
+
+    // ── Imagen ──────────────────────────────────────────────────────────────
+
+    function triggerFilePicker() {
+      document.getElementById('file-input').click();
+    }
+
+    function onImageSelected(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Validar tamaño
+      if (file.size > MAX_IMAGE_BYTES) {
+        setStatus('Imagen muy grande — usa una captura de pantalla (máx 4MB)', 'err');
+        e.target.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        _imageBase64 = ev.target.result;  // data:image/...;base64,...
+        _imageMime = file.type;
+
+        // Mostrar preview
+        const preview = document.getElementById('image-preview');
+        const wrap = document.getElementById('image-preview-wrap');
+        preview.src = _imageBase64;
+        wrap.classList.add('visible');
+
+        // Badge en botón adjuntar
+        document.getElementById('btn-attach').classList.add('has-image');
+        setStatus('', '');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeImage() {
+      _imageBase64 = null;
+      _imageMime = null;
+      document.getElementById('image-preview').src = '';
+      document.getElementById('image-preview-wrap').classList.remove('visible');
+      document.getElementById('btn-attach').classList.remove('has-image');
+      document.getElementById('file-input').value = '';
+    }
+
+    // ── Cola offline ─────────────────────────────────────────────────────────
 
     function loadQueue() {
       try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
     }
     function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
 
-    function enqueue(text) {
+    function enqueue(text, imageBase64) {
       const q = loadQueue();
-      q.push({ id: Date.now().toString(), text, attempts: 0 });
+      q.push({ id: Date.now().toString(), text, imageBase64: imageBase64 || null, attempts: 0 });
       saveQueue(q);
       renderQueue();
       scheduleRetry();
@@ -124,7 +257,7 @@
       section.classList.add('visible');
       list.innerHTML = q.map(item => `
         <div class="queue-item">
-          <span class="queue-item-text">${item.text}</span>
+          <span class="queue-item-text">${item.imageBase64 ? '📎 ' : ''}${item.text || '(solo imagen)'}</span>
           <span class="queue-item-attempts">${item.attempts}x</span>
           <button class="queue-item-retry" onclick="retryItem('${item.id}')">Reintentar</button>
           <button class="queue-item-delete" onclick="removeFromQueue('${item.id}')">✕</button>
@@ -132,11 +265,21 @@
       `).join('');
     }
 
-    async function sendToAPI(text) {
+    // ── API ──────────────────────────────────────────────────────────────────
+
+    async function sendToAPI(text, imageBase64) {
+      const payload = { text: text || '' };
+      if (imageBase64) {
+        payload.image_base64 = imageBase64;
+        payload.source = 'pwa_image';
+      } else {
+        payload.source = 'pwa';
+      }
+
       const res = await fetch(API, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-api-key': KEY },
-        body: JSON.stringify({ text })
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
     }
@@ -146,7 +289,7 @@
       const item = q.find(i => i.id === id);
       if (!item) return;
       try {
-        await sendToAPI(item.text);
+        await sendToAPI(item.text, item.imageBase64);
         removeFromQueue(id);
         setStatus('✓ Guardado', 'ok');
       } catch {
@@ -166,7 +309,7 @@
         const i = current.find(x => x.id === item.id);
         if (!i) return;
         try {
-          await sendToAPI(i.text);
+          await sendToAPI(i.text, i.imageBase64);
           removeFromQueue(i.id);
           setStatus('✓ Guardado (reintento)', 'ok');
         } catch {
@@ -178,6 +321,8 @@
       }, delay);
     }
 
+    // ── Guardar ──────────────────────────────────────────────────────────────
+
     function setStatus(msg, cls) {
       const s = document.getElementById('status');
       s.textContent = msg;
@@ -187,26 +332,36 @@
 
     async function guardar() {
       const txt = document.getElementById('txt').value.trim();
-      if (!txt) return;
+      const img = _imageBase64;
+
+      // Validar: necesita al menos texto o imagen
+      if (!txt && !img) return;
+
+      // Limpiar UI inmediatamente (guardado optimista)
       document.getElementById('txt').value = '';
+      removeImage();
       setStatus('✓ Guardado', 'ok');
       document.getElementById('txt').focus();
+
       try {
-        await sendToAPI(txt);
+        await sendToAPI(txt, img);
       } catch {
         setStatus('Sin conexión — en cola', 'err');
-        enqueue(txt);
+        enqueue(txt, img);
       }
     }
+
+    // ── Atajos de teclado ────────────────────────────────────────────────────
 
     document.getElementById('txt').addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) guardar();
     });
 
+    // ── Init ─────────────────────────────────────────────────────────────────
+
     renderQueue();
     scheduleRetry();
 
-    // Abrir teclado automáticamente al cargar
     window.addEventListener('load', () => {
       setTimeout(() => document.getElementById('txt').focus(), 300);
     });
