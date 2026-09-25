@@ -239,9 +239,41 @@
     function enqueue(text, imageBase64) {
       const q = loadQueue();
       q.push({ id: Date.now().toString(), text, imageBase64: imageBase64 || null, attempts: 0 });
-      saveQueue(q);
+      try {
+        saveQueue(q);
+      } catch (e) {
+        // localStorage lleno (típico con imágenes grandes) — guardar sin imagen
+        const qSinImg = loadQueue();
+        qSinImg.push({ id: Date.now().toString(), text, imageBase64: null, attempts: 0 });
+        try {
+          saveQueue(qSinImg);
+          setStatus('Imagen no guardada en cola (muy grande) — texto sí guardado', 'warn');
+        } catch {
+          setStatus('No se pudo guardar en cola — intenta de nuevo', 'err');
+          return;
+        }
+      }
       renderQueue();
       scheduleRetry();
+    }
+
+    // Comprime una imagen base64 a máximo 800px y calidad 0.65 JPEG (~100-200KB)
+    function comprimirImagen(base64, callback) {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', 0.65));
+      };
+      img.onerror = () => callback(base64); // si falla, usar original
+      img.src = base64;
     }
 
     function removeFromQueue(id) {
@@ -334,7 +366,6 @@
       const txt = document.getElementById('txt').value.trim();
       const img = _imageBase64;
 
-      // Validar: necesita al menos texto o imagen
       if (!txt && !img) return;
 
       // Limpiar UI inmediatamente (guardado optimista)
@@ -343,11 +374,23 @@
       setStatus('✓ Guardado', 'ok');
       document.getElementById('txt').focus();
 
-      try {
-        await sendToAPI(txt, img);
-      } catch {
-        setStatus('Sin conexión — en cola', 'err');
-        enqueue(txt, img);
+      if (img) {
+        // Comprimir antes de enviar/encolar para evitar límite localStorage
+        comprimirImagen(img, async (imgComprimida) => {
+          try {
+            await sendToAPI(txt, imgComprimida);
+          } catch {
+            setStatus('Sin conexión — en cola', 'err');
+            enqueue(txt, imgComprimida);
+          }
+        });
+      } else {
+        try {
+          await sendToAPI(txt, null);
+        } catch {
+          setStatus('Sin conexión — en cola', 'err');
+          enqueue(txt, null);
+        }
       }
     }
 
