@@ -123,6 +123,48 @@
     #status.err { color: #ff453a; }
     #status.warn { color: #ff9f0a; }
 
+    /* ── Plantillas ── */
+    #templates-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    #templates-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #templates-title { font-size: 12px; color: #555; font-weight: 600; }
+    #btn-save-tpl {
+      background: none;
+      border: 1px solid #333;
+      color: #888;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #btn-save-tpl:active { opacity: 0.6; }
+    #templates-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tpl-btn {
+      background: #1c1c1e;
+      border: 1px solid #333;
+      color: #ccc;
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tpl-btn:active { opacity: 0.6; }
+
     /* ── Cola offline ── */
     #queue-section { display: none; margin-top: 8px; }
     #queue-section.visible { display: block; }
@@ -154,6 +196,15 @@
     </div>
 
     <div id="status"></div>
+
+    <!-- Plantillas guardadas -->
+    <div id="templates-section">
+      <div id="templates-header">
+        <span id="templates-title">📋 Plantillas</span>
+        <button id="btn-save-tpl" onclick="guardarPlantilla()">+ Guardar actual</button>
+      </div>
+      <div id="templates-list"></div>
+    </div>
 
     <!-- Barra: botón adjuntar + botón guardar -->
     <div id="action-row">
@@ -407,7 +458,73 @@
 
     window.addEventListener('load', () => {
       setTimeout(() => document.getElementById('txt').focus(), 300);
+      cargarPlantillas();
     });
+
+    // ── Plantillas ───────────────────────────────────────────────────────────
+
+    let _plantillas = [];
+
+    function fechaHoy() {
+      const d = new Date();
+      const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+      const meses = ['enero','febrero','marzo','abril','mayo','junio',
+                     'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+    }
+
+    async function cargarPlantillas() {
+      try {
+        const res = await fetch(API.replace('/drafts', '/templates'), {
+          headers: { 'x-api-key': KEY }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        _plantillas = data.items || [];
+        renderPlantillas();
+      } catch {}
+    }
+
+    function renderPlantillas() {
+      const list = document.getElementById('templates-list');
+      if (!_plantillas.length) {
+        list.innerHTML = '<span style="font-size:11px;color:#444">Sin plantillas guardadas</span>';
+        return;
+      }
+      list.innerHTML = _plantillas.map(t => `
+        <button class="tpl-btn" onclick="aplicarPlantilla('${t.id}')" title="${t.text}">${t.label}</button>
+      `).join('');
+    }
+
+    function aplicarPlantilla(id) {
+      const tpl = _plantillas.find(t => t.id === id);
+      if (!tpl) return;
+      const texto = tpl.text.replace(/{fecha}/gi, fechaHoy());
+      document.getElementById('txt').value = texto;
+      document.getElementById('txt').focus();
+      // Mover cursor al final
+      const el = document.getElementById('txt');
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+
+    async function guardarPlantilla() {
+      const txt = document.getElementById('txt').value.trim();
+      if (!txt) { setStatus('Escribe algo primero', 'err'); return; }
+      try {
+        const res = await fetch(API.replace('/drafts', '/templates'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-api-key': KEY },
+          body: JSON.stringify({ text: txt })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        _plantillas = [data.item, ..._plantillas];
+        renderPlantillas();
+        setStatus('Plantilla guardada', 'ok');
+      } catch {
+        setStatus('No se pudo guardar la plantilla', 'err');
+      }
+    }
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(reg => {
