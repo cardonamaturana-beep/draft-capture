@@ -1,5 +1,5 @@
-const VERSION = 'v6';
-const CACHE = `draft-v6`;
+const VERSION = 'v7';
+const CACHE = `draft-v7`;
 
 self.addEventListener('install', e => {
   self.skipWaiting();
