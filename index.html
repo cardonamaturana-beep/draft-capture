@@ -608,8 +608,24 @@
         return;
       }
       list.innerHTML = _plantillas.map(t =>
-        `<button class="tpl-btn" onclick="abrirCalParaTpl('${t.id}')">${t.label}</button>`
+        `<span style="display:inline-flex;align-items:center;gap:0;background:#1c1c1e;border:1px solid #333;border-radius:8px;overflow:hidden">
+          <button class="tpl-btn" style="border:none;border-radius:0;max-width:140px" onclick="abrirCalParaTpl('${t.id}')">${t.label}</button>
+          <button onclick="eliminarPlantilla('${t.id}')" style="background:none;border:none;color:#555;font-size:13px;padding:5px 8px;cursor:pointer;flex-shrink:0" title="Eliminar">✕</button>
+        </span>`
       ).join('');
+    }
+
+    async function eliminarPlantilla(id) {
+      try {
+        const res = await fetch(`${API.replace('/drafts', '/templates')}/${id}`, {
+          method: 'DELETE', headers: { 'x-api-key': KEY }
+        });
+        if (!res.ok) throw new Error();
+        _plantillas = _plantillas.filter(t => t.id !== id);
+        renderPlantillas();
+      } catch {
+        setStatus('No se pudo eliminar', 'err');
+      }
     }
 
     // Al tocar una plantilla → abrir calendario directamente
